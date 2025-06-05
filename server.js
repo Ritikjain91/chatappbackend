@@ -4,39 +4,46 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors());
+app.use(cors()); // Optional: Set specific origins if needed
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
+    origin: 'https://chatappbackend-u8qn.onrender.com', // Your frontend URL
+    methods: ['GET', 'POST']
   }
 });
 
-let users = {}; 
+const users = {}; // Mapping userId -> socket.id
 
 io.on('connection', (socket) => {
-  console.log('New user connected: ' + socket.id);
+  console.log(`🟢 New connection: ${socket.id}`);
 
+  // Register a user
   socket.on('register', (userId) => {
     users[userId] = socket.id;
-    console.log(`User registered: ${userId} -> ${socket.id}`);
+    console.log(`✅ Registered user: ${userId} -> ${socket.id}`);
   });
 
+  // Send message
   socket.on('send_message', (data) => {
     const { to, from, message } = data;
     const targetSocketId = users[to];
+    
     if (targetSocketId) {
       io.to(targetSocketId).emit('receive_message', { from, message });
+      console.log(`📨 Message from ${from} to ${to}: ${message}`);
+    } else {
+      console.log(`⚠️ User ${to} not connected`);
     }
   });
 
+  // Disconnect
   socket.on('disconnect', () => {
     for (const userId in users) {
       if (users[userId] === socket.id) {
-        console.log(`User disconnected: ${userId}`);
+        console.log(`🔴 User disconnected: ${userId}`);
         delete users[userId];
         break;
       }
@@ -44,10 +51,13 @@ io.on('connection', (socket) => {
   });
 });
 
+// Basic health check route
 app.get('/', (req, res) => {
-  res.send('Chat Server is running...');
+  res.send('🚀 Chat Server is running...');
 });
 
-server.listen(3001, () => {
-  console.log('Server running on port 3001');
+// Start server
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🌐 Server listening on port ${PORT}`);
 });
